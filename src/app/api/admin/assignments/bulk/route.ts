@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getAssignmentStore, getStore } from '@/lib/storage';
+import { getAssignmentStore, getStore, getUserStore } from '@/lib/storage';
 import { selectQuestionsForSession } from '@/lib/question-selection';
 import { AssessmentVersion, AssessmentSession, ClientAssignment } from '@/lib/types';
 import { VERSION_CONFIGS } from '@/lib/constants';
+import { getEmailProvider } from '@/lib/email';
+import { assignmentNotificationEmail } from '@/lib/email/templates';
 
 async function requireAdmin(): Promise<string | null> {
   const session = await auth();
@@ -34,8 +36,17 @@ export async function POST(request: NextRequest) {
 
   const sessionStore = getStore();
   const assignmentStore = getAssignmentStore();
+  const userStore = getUserStore();
   const now = new Date().toISOString();
   const created: ClientAssignment[] = [];
+
+  // Pre-fetch all target users for email notifications
+  const clientUsers = await Promise.all(
+    clientUserIds.map((id: string) => userStore.findById(id))
+  );
+  const clientUserMap = new Map(
+    clientUsers.filter(Boolean).map(u => [u!.id, u!])
+  );
 
   for (const clientUserId of clientUserIds) {
     const { previewQuestionIds, fullQuestionIds } = selectQuestionsForSession(
@@ -75,6 +86,19 @@ export async function POST(request: NextRequest) {
 
     await assignmentStore.create(assignment);
     created.push(assignment);
+
+    // Send assignment notification email (fire-and-forget)
+    const clientUser = clientUserMap.get(clientUserId);
+    if (clientUser) {
+      const versionName = VERSION_CONFIGS[version as AssessmentVersion]?.name || version;
+      const { subject, html, text } = assignmentNotificationEmail(
+        clientUser.firstName,
+        versionName,
+        deadline
+      );
+      getEmailProvider().send({ to: clientUser.email, subject, html, text })
+        .catch(err => console.error('Failed to send assignment notification:', err));
+    }
   }
 
   return NextResponse.json({ assignments: created, count: created.length }, { status: 201 });

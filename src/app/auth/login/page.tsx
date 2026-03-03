@@ -78,9 +78,18 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-1.5" style={{ color: colors.charcoal }}>
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium" style={{ color: colors.charcoal }}>
+                Password
+              </label>
+              <a
+                href="/auth/forgot-password"
+                className="text-xs hover:underline"
+                style={{ color: colors.slate }}
+              >
+                Forgot password?
+              </a>
+            </div>
             <input
               type="password"
               value={password}

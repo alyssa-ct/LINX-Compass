@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getUserStore } from '@/lib/storage';
+import { getEmailProvider } from '@/lib/email';
+import { welcomeEmail } from '@/lib/email/templates';
 
 export async function POST(request: Request) {
   try {
@@ -43,6 +45,11 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    // Send welcome email (fire-and-forget)
+    const { subject, html, text } = welcomeEmail(firstName.trim());
+    getEmailProvider().send({ to: email.toLowerCase().trim(), subject, html, text })
+      .catch(err => console.error('Failed to send welcome email:', err));
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

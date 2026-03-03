@@ -279,6 +279,8 @@ export interface User {
   lastName: string;
   company: string;
   role: UserRole;
+  passwordResetToken?: string;
+  passwordResetExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
 }
